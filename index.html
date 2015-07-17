@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>WebGL Rain</title>
+		<style>
+			#attribution {
+				background-color: #dedede;
+				border: 1px solid #aaa;
+				border-radius: 2px;
+				bottom: 10px;
+				height: 15px;
+				padding: 5px;
+				position: absolute;
+				right: 10px;
+				text-align: right;
+				width: 530px;
+			}
+			#canvas {
+				border: 0;
+				left: 0;
+				position: absolute;
+				top: 0;
+			}
+			#container {
+				padding-left: 5px;
+				padding-top: 5px;
+				position: absolute;
+			}
+			#hud {
+				border: 0;
+				pointer-events: none;
+				left: 0;
+				position: absolute;
+				top: 0;
+				z-index: 2;
+			}
+		</style>
+	</head>
+
+	<body>
+		<!-- Something to draw on -->
+		<div id="container">
+			<canvas id="canvas" width="960px" height="540px"></canvas>
+			<canvas id="hud" width="960px" height="540px"></canvas>
+		</div>
+
+		<div id="attribution">
+			<a href="https://github.com/aethersis/water-ripples-2D">Water-Ripples-2D
+				by Aethersis</a> -
+			<a href="http://glmatrix.net/" target="_blank">glMatrix.js</a> -
+			<a href="http://opengameart.org/content/brick-wall">Brick wall
+				texture by JosipKladaric</a>
+		</div>
+
+		<!-- Floor Shader -->
+		<script id="floor-vs" type="x-shader/x-vertex">
+			attribute vec3 aPos;
+			attribute vec2 aUV;
+			attribute vec3 aNormal;
+			attribute vec3 aTangent;
+			attribute vec3 aBiTangent;
+
+			uniform mat4 uCamMat;
+			uniform mat4 uPMat;
+
+			uniform mat4 uMat;
+
+			varying mat3 vTBN;
+			varying vec4 vPosition;
+			varying vec2 vUV;
+
+			void main(void) {
+				vUV = aUV;
+
+				vec3 n = vec3(normalize(uMat * vec4(aNormal, 	0.0)));
+				vec3 b = vec3(normalize(uMat * vec4(aBiTangent, 0.0)));
+				vec3 t = vec3(normalize(uMat * vec4(aTangent,   0.0)));
+				vTBN = mat3(t, b, n);
+
+				vPosition = uMat * vec4(aPos, 1.0);
+				gl_Position = uPMat * uCamMat * uMat * vPosition;
+			}
+		</script>
+		<script id="floor-fs" type="x-shader/x-fragment">
+			precision highp float;
+
+			uniform sampler2D tAlbedo;
+			uniform sampler2D tNormal;
+			uniform sampler2D tSpec;
+			uniform sampler2D tRain;
+
+			uniform vec3 uCamPos;
+
+			uniform vec3 lAmbientColour;
+			uniform vec3 lPointColour;
+			uniform vec3 lPointPosition;
+			uniform float lPointAttn;
+
+			varying mat3 vTBN;
+			varying vec4 vPosition;
+			varying vec2 vUV;
+
+			void main(void) {
+				vec4 albedo = texture2D(tAlbedo, vUV);
+				vec3 normal = normalize(vTBN * (texture2D(tNormal, vUV).rgb * 2.0 - 1.0));
+				float spec  = texture2D(tSpec, vUV).r * 255.0;
+
+				// Ambient
+				vec3 lighting = lAmbientColour;
+
+				// Diffuse
+				vec3 lDir = normalize(lPointPosition - vPosition.xyz);
+				float lDist = length(lPointPosition - vPosition.xyz);
+				float lAttn = 1.0 / (1.0 + lPointAttn * pow(lDist, 2.0));
+				float diffuse = max(0.0, dot(lDir, normal));
+				lighting += lAttn * diffuse * lPointColour;
+
+				// Specular
+				vec3 rDir = normalize(-reflect(lDir, normal));
+				vec3 eDir = normalize(-uCamPos - vPosition.xyz);
+				float specular = pow(max(0.0, dot(rDir, eDir)), spec);
+				lighting += lAttn * specular * lPointColour;
+
+				// Rain Simulation
+				float rain = (texture2D(tRain, vUV).r / 100.0 + 0.5);
+
+				// Gamma Correct
+				vec4 outColour = vec4(rain * lighting * albedo.rgb, 1.0);
+				gl_FragColor = vec4(pow(outColour.rgb, vec3(1.0 / 2.2)), outColour.a);
+			}
+		</script>
+
+		<!-- External Libs -->
+		<script src="scripts/gl-matrix-min.js"></script>
+
+		<!-- pff, what autoloader? -->
+		<script src="scripts/camera.js"></script>
+		<script src="scripts/hud.js"></script>
+		<script src="scripts/input.js"></script>
+		<script src="scripts/shader.js"></script>
+		<script src="scripts/texture.js"></script>
+		<script src="scripts/scene.js"></script>
+
+		<!-- Include last ;) -->
+		<script src="scripts/main.js"></script>
+	</script>
+</html>
