@@ -128,7 +128,7 @@
 				lighting += lAttn * specular * lPointColour;
 
 				// Rain Simulation
-				float rain = (texture2D(tRain, vUV).r / 100.0 + 0.5);
+				float rain = (texture2D(tRain, vUV).r / 100.0 + 0.25);
 
 				// Gamma Correct
 				vec4 outColour = vec4(rain * lighting * albedo.rgb, 1.0);
