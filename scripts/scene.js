@@ -11,10 +11,10 @@ var rain = {
 	a_new: 		null,
 	a_prev:		null,
 	lastRain: 	0.0,
-	randomDrops:false,
+	randomDrops:true,
 	sim: 		true,
 	simTime: 	0.0,
-	size: 		128,
+	size: 		512,
 	texture: 	null
 };
 
@@ -85,7 +85,8 @@ function updateScene(dt) {
 	hud.drawText(-5, 10, "Frame: " + frameTime.toFixed(4) + "ms");
 	hud.drawText(-5, 20, "Sim: " + rain.simTime.toFixed(4) + "ms");
 
-	hud.drawText(-5, -20, "Controls: [C]lear Data / [R]andom Drops / [P]ause Sim");
+	hud.drawText(-5, -20, "Controls: [C]lear Data / [R]andom Drops: " +
+		(rain.randomDrops ? 'On' : 'Off') + " / [P]ause Sim");
 	hud.drawText(-5, -10, "Camera: [WASDQE] Move / [↑↓← →] Turn");
 
 	// Input ------------------
@@ -109,7 +110,7 @@ function updateScene(dt) {
 			addAmplitude(
 				Math.floor(Math.random() * rain.size),
 				Math.floor(Math.random() * rain.size),
-				Math.floor(Math.random() * 20) + 2
+				Math.random() * 50
 			);
 			rain.lastRain = 0.0;
 		}
@@ -117,11 +118,12 @@ function updateScene(dt) {
 		propagate();
 		for (var i = 0; i < 10; ++i) {
 			rainSim(
-				Math.random() % rain.size,
-				Math.random() % rain.size,
-				50 + 400.0 * ((Math.random() % 1000) / 1000.0)
+				Math.floor(Math.random() * rain.size),
+				Math.floor(Math.random() * rain.size),
+				50 + 400.0 * Math.random()
 			);
 		}
+
 		textureUpdate(rain.texture, rain.a_new);
 		rain.simTime = window.performance.now() - simStart;
 	}
