@@ -49,8 +49,9 @@ function initScene() {
 	};
 	scene.lights["point"] = {
 		attenuation: 0.1,
-		colour:  	[0.25, 0.25, 0.05],
-		position: 	[0.00, 2.00, 0.00]
+		colour:  	[1.0, 1.0, 0.15],
+		position: 	[0.0, 2.0, 0.0],
+		intensity: 	0.15
 	};
 
 	// Rain -------------------
@@ -81,13 +82,19 @@ function updateScene(dt) {
 		camera.angle[0].toFixed(2) + ", " +
 		camera.angle[1].toFixed(2) + ", " +
 		camera.angle[2].toFixed(2) + "]");
+	hud.drawText(5, 20, "Light: [" +
+		scene.lights["point"].position[0].toFixed(2) + ", " +
+		scene.lights["point"].position[1].toFixed(2) + ", " +
+		scene.lights["point"].position[2].toFixed(2) + "] Intensity [" +
+		scene.lights["point"].intensity.toFixed(2) + "]");
 
 	hud.drawText(-5, 10, "Frame: " + frameTime.toFixed(4) + "ms");
 	hud.drawText(-5, 20, "Sim: " + rain.simTime.toFixed(4) + "ms");
 
-	hud.drawText(-5, -20, "Controls: [C]lear Data / [R]andom Drops: " +
+	hud.drawText(-5, -10, "Controls: [C]lear Data / [R]andom Drops: " +
 		(rain.randomDrops ? 'On' : 'Off') + " / [P]ause Sim");
-	hud.drawText(-5, -10, "Camera: [WASDQE] Move / [↑↓← →] Turn");
+	hud.drawText(-5, -20, "Camera: [WASDQE] Move / [↑↓← →] Turn");
+	hud.drawText(-5, -30, "Light: [L] Set Pos / [+-] Intensity");
 
 	// Input ------------------
 	if (input.keys[input.e.keys.C]) {
@@ -101,6 +108,24 @@ function updateScene(dt) {
 	if (input.keys[input.e.keys.R]) {
 		rain.randomDrops = !rain.randomDrops;
 		input.keys[input.e.keys.R] = false;
+	}
+	if (input.keys[input.e.keys.L]) {
+		scene.lights["point"].position = [
+			-camera.position[0],
+			-camera.position[1],
+			-camera.position[2]
+		];
+		input.keys[input.e.keys.L] = false;
+	}
+	if (input.keys[input.e.keys.ADD]) {
+		if ((scene.lights["point"].intensity += 0.05) > 1.0)
+			scene.lights["point"].intensity = 1.0;
+		input.keys[input.e.keys.ADD] = false;
+	}
+	if (input.keys[input.e.keys.SUBTRACT]) {
+		if ((scene.lights["point"].intensity -= 0.05) < 0.05)
+			scene.lights["point"].intensity = 0.05;
+		input.keys[input.e.keys.SUBTRACT] = false;
 	}
 
 	// Sim --------------------
@@ -223,6 +248,7 @@ function drawFloor() {
 	gl.uniform3fv(shader.fUniforms.lAmbientColour, 	scene.lights["ambient"].colour);
 	gl.uniform1f (shader.fUniforms.lPointAttn, 		scene.lights["point"].attenuation);
 	gl.uniform3fv(shader.fUniforms.lPointColour, 	scene.lights["point"].colour);
+	gl.uniform1f (shader.fUniforms.lPointIntensity, scene.lights["point"].intensity);
 	gl.uniform3fv(shader.fUniforms.lPointPosition, 	scene.lights["point"].position);
 
 	// Textures
@@ -241,6 +267,7 @@ function drawFloor() {
 	gl.activeTexture(gl.TEXTURE3);
 	gl.bindTexture(gl.TEXTURE_2D, rain.texture.buf);
 	gl.uniform1i(shader.fUniforms.tRain, 3);
+	gl.uniform1f(shader.fUniforms.tRainSize, (1.0 / rain.size));
 
 	// Draw Quad
 	gl.uniformMatrix4fv(shader.vUniforms.uMat, false, floor.mat);
@@ -251,4 +278,4 @@ function drawFloor() {
 		gl.vertexAttribPointer(shader.attribs.aTangent,  	3, gl.FLOAT, false, 56, 32);
 		gl.vertexAttribPointer(shader.attribs.aBiTangent,  	3, gl.FLOAT, false, 56, 44);
 	gl.drawArrays(gl.TRIANGLES, 0, 6);
-}
+};
