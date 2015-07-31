@@ -124,6 +124,8 @@
 				vec3 normal = (texture2D(tNormal, vUV).rgb * 2.0 - 1.0);
 				float spec  = texture2D(tSpec, vUV).r * 255.0;
 
+				normal.g = 1.0 - normal.g;
+
 				// Heightmap from the rain
 				normal += heightmapNormal();
 				normal = normalize(normal);
