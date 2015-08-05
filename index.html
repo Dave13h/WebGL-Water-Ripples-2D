@@ -124,6 +124,7 @@
 				vec3 normal = (texture2D(tNormal, vUV).rgb * 2.0 - 1.0);
 				float spec  = texture2D(tSpec, vUV).r * 255.0;
 
+				// Flip the Y channel
 				normal.g = 1.0 - normal.g;
 
 				// Heightmap from the rain
@@ -153,11 +154,184 @@
 			}
 		</script>
 
+		<!-- Rain Sim Shader -->
+		<script id="rainSim-vs" type="x-shader/x-vertex">
+			attribute vec2 aPos;
+			//attribute vec2 aUV;
+
+			uniform vec2 uOffset;
+
+			varying float vR;
+			varying vec2 vPos;
+			varying vec2 vLPos;
+
+			void main(void) {
+				vLPos = aPos; // Local position
+				vPos = aPos + uOffset;
+				gl_Position = vec4(vPos, 0.0, 1.0);
+			}
+		</script>
+		<script id="rainSim-fs" type="x-shader/x-fragment">
+			precision highp float;
+
+			#define PI 3.31415926535
+
+			uniform sampler2D tCurrent;
+			uniform float uStrength;
+
+			uniform vec2 uMid;
+			uniform vec2 uPOffset;
+			varying vec2 vLPos;
+
+			varying vec2 vPos;
+			varying float vR;
+
+			void main(void) {
+				float cur = texture2D(tCurrent, vPos).r;
+
+				// Mid hit point
+				vec2 dFromMid = vec2(
+					uPOffset.x - vLPos.x,
+					uPOffset.y - vLPos.y);
+
+				vec2 pixelPos = vec2(
+					514.0 * dFromMid.x,
+					514.0 * dFromMid.y
+				);
+
+				float r = sqrt(pow(pixelPos.x, 2.0) + pow(pixelPos.y, 2.0));
+
+				float sim = cur + -uStrength * sin(PI * r * 0.32) / (25.0 * r + 0.001);
+				gl_FragColor = vec4(sim, sim, sim, 1.0);
+			}
+		</script>
+
+		<!-- Propagate Shader -->
+		<script id="propagate-vs" type="x-shader/x-vertex">
+			attribute vec3 aPos;
+			attribute vec2 aUV;
+			varying vec2 vUV;
+
+			void main(void) {
+				vUV = aUV;
+				gl_Position = vec4(aPos, 1.0);
+			}
+		</script>
+		<script id="propagate-fs" type="x-shader/x-fragment">
+			precision highp float;
+
+			uniform sampler2D tPrev;
+			uniform sampler2D tCurrent;
+			uniform float uSize;
+			uniform float uC;
+
+			varying vec2 vUV;
+
+			float neumann(vec2 offset) {
+				return 
+					texture2D(tCurrent, vec2(offset.s + uSize, offset.t)).r +
+					texture2D(tCurrent, vec2(offset.s - uSize, offset.t)).r + 
+					texture2D(tCurrent, vec2(offset.s, offset.t - uSize)).r + 
+					texture2D(tCurrent, vec2(offset.s, offset.t + uSize)).r;
+			}
+
+			void main(void) {
+				float current = texture2D(tCurrent, vUV).r;
+				float prev = texture2D(tPrev, vUV).r;
+				float prop = uC * (neumann(vUV) - 4.0 * current) - prev + 2.0 * current;
+				gl_FragColor = vec4(prop, prop, prop, 1.0);
+			}
+		</script>
+
+		<!-- Damping Shader -->
+		<script id="damping-vs" type="x-shader/x-vertex">
+			attribute vec3 aPos;
+			attribute vec2 aUV;
+
+			varying vec2 vUV;
+
+			void main(void) {
+				vUV = aUV;
+				gl_Position = vec4(aPos, 1.0);
+			}
+		</script>
+		<script id="damping-fs" type="x-shader/x-fragment">
+			precision highp float;
+
+			uniform sampler2D tTexture;
+			uniform float uDamping;
+
+			varying vec2 vUV;
+
+			void main(void) {
+				gl_FragColor = vec4(texture2D(tTexture, vUV).rgb * uDamping, 1.0);
+			}
+		</script>
+
+		<!-- Copy Texture Shader -->
+		<script id="copyTexture-vs" type="x-shader/x-vertex">
+			attribute vec3 aPos;
+			attribute vec2 aUV;
+
+			varying vec2 vUV;
+
+			void main(void) {
+				vUV = aUV;
+				gl_Position = vec4(aPos, 1.0);
+			}
+		</script>
+		<script id="copyTexture-fs" type="x-shader/x-fragment">
+			precision highp float;
+
+			uniform sampler2D tTexture;
+			varying vec2 vUV;
+
+			void main(void) {
+				gl_FragColor = texture2D(tTexture, vUV);
+			}
+		</script>
+
+		<!-- TextureViewer Shader -->
+		<script id="textureViewer-vs" type="x-shader/x-vertex">
+			attribute vec3 aPos;
+			attribute vec2 aUV;
+
+			uniform vec2 uOffset;
+			uniform vec2 uSize;
+			uniform float uWinHeight;
+			uniform float uWinWidth;
+
+			varying vec2 vUV;
+
+			void main(void) {
+				vUV = aUV;
+				
+				vec3 pos = aPos;
+				pos.x += uOffset.x + (pos.x * uSize.x);
+				pos.y += uOffset.y + (pos.y * uSize.y);
+				pos.xy -= vec2(uWinWidth / 2.0, uWinHeight / 2.0);
+				pos.xy /= vec2(uWinWidth / 2.0, uWinHeight / 2.0);
+				gl_Position = vec4(pos, 1.0);
+			}
+		</script>
+		<script id="textureViewer-fs" type="x-shader/x-fragment">
+			precision highp float;
+
+			uniform sampler2D tTexture;
+			
+			varying vec2 vUV;
+
+			void main(void) {
+				gl_FragColor = texture2D(tTexture, vUV);
+			}
+		</script>
+
 		<!-- External Libs -->
 		<script src="scripts/gl-matrix-min.js"></script>
 
 		<!-- pff, what autoloader? -->
 		<script src="scripts/camera.js"></script>
+		<script src="scripts/framebuffer.js"></script>
 		<script src="scripts/hud.js"></script>
 		<script src="scripts/input.js"></script>
 		<script src="scripts/shader.js"></script>

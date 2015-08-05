@@ -160,5 +160,10 @@ function shaderLoad(name){
 		gl.useProgram(null);
 	};
 
+	// Quick test and unbind current
+	shader.bind();
+	shader.unbind();
+
+	console.log("Shader:\t\t" + name + " Compiled");
 	return shader;	
 }
