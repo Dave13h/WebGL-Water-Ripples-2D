@@ -1,17 +1,25 @@
 // ----------------------------------------------------------------------------
 // Scene
 // ----------------------------------------------------------------------------
+const CPU = 0;
+const GPU = 1;
+var MODE = GPU;
+
+var fsQuadBuf;
 var scene = {
 	entities: 	[],
-	lights: 	[]
+	lights: 	[],
+	offscreen: 	{}
 };
 var camera = new cCamera([0.0, -2.0, -1.25], [300.0, 0.0, 0.0]);
 var rain = {
 	a: 			null,
 	a_new: 		null,
 	a_prev:		null,
+	c: 			0.499,
+	damping: 	0.988,
 	lastRain: 	0.0,
-	randomDrops:true,
+	randomDrops:false,
 	sim: 		true,
 	simTime: 	0.0,
 	size: 		512,
@@ -19,6 +27,8 @@ var rain = {
 };
 
 function initScene() {
+	shaders["copyTexture"] = shaderLoad("copyTexture");
+
 	// Entities ---------------
 	shaders["floor"] = shaderLoad("floor");
 	scene.entities["floor"] = {
@@ -50,8 +60,8 @@ function initScene() {
 	scene.lights["point"] = {
 		attenuation: 0.1,
 		colour:  	[1.0, 1.0, 0.15],
-		position: 	[0.0, 2.0, 0.0],
-		intensity: 	0.15
+		position: 	[-0.25, 0.25, -0.25],
+		intensity: 	0.50
 	};
 
 	// Rain -------------------
@@ -61,14 +71,63 @@ function initScene() {
 	rain.a_prev		= new Float32Array(size);
 	rain.texture	= new cTexture(rain.a, rain.size + 2, rain.size + 2, gl.LUMINANCE, gl.FLOAT);
 	rain.lastRain 	= 0.0;
+	
+	shaders["propagate"] = shaderLoad("propagate");
+	shaders["damping"] 	 = shaderLoad("damping");
+	shaders["rainSim"] 	 = shaderLoad("rainSim");
+
+	rain.qScale = (1.0 / rain.size) * (rain.size / 80.0);
+	rain.simQuad = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, rain.simQuad);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+		-rain.qScale, -rain.qScale,
+		 rain.qScale, -rain.qScale,
+		-rain.qScale,  rain.qScale,
+
+		-rain.qScale,  rain.qScale,
+		 rain.qScale, -rain.qScale,
+		 rain.qScale,  rain.qScale
+	]), gl.STATIC_DRAW);
+
+	// Offscreen Buffers
+	fsQuadBuf = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, fsQuadBuf);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+		-1.0, -1.0,  0.0,	0.0, 0.0,
+		 1.0, -1.0,  0.0,	1.0, 0.0,
+		-1.0,  1.0,  0.0,	0.0, 1.0,
+
+		-1.0,  1.0,  0.0,	0.0, 1.0,
+		 1.0, -1.0,  0.0,	1.0, 0.0,
+		 1.0,  1.0,  0.0,	1.0, 1.0
+	]), gl.STATIC_DRAW);
+
+	// Temp textures, these will be the rain textures later
+	var tmpTextureData = new Float32Array(size * 3);
+	scene.offscreen.a = [];
+	scene.offscreen.a.push(new cTexture(tmpTextureData, rain.size + 2, 
+		rain.size + 2, gl.RGB, gl.FLOAT));
+	scene.offscreen.a.push(new cTexture(tmpTextureData, rain.size + 2, 
+		rain.size + 2, gl.RGB, gl.FLOAT));
+
+	scene.offscreen.prev = new cTexture(tmpTextureData, rain.size + 2, 
+		rain.size + 2, gl.RGB, gl.FLOAT);
+	scene.offscreen.new  = new cTexture(tmpTextureData, rain.size + 2, 
+		rain.size + 2, gl.RGB, gl.FLOAT);
+
+	// Render Target
+	scene.offscreen.fbo = frameBufferCreate(scene.offscreen.a[0]);
 };
 
 // ----------------------------------------------------------------------------
 // Frame Functions
 // ----------------------------------------------------------------------------
-var frameTime = 0.0;
+var frameTime = 0.0,
+	frameStart,
+	simStart;
+
 function updateScene(dt) {
-	var frameStart = window.performance.now();
+	frameStart = window.performance.now();
 
 	// Update Camera ----------
 	camera.update(dt);
@@ -89,9 +148,10 @@ function updateScene(dt) {
 		scene.lights["point"].intensity.toFixed(2) + "]");
 
 	hud.drawText(-5, 10, "Frame: " + frameTime.toFixed(4) + "ms");
-	hud.drawText(-5, 20, "Sim: " + rain.simTime.toFixed(4) + "ms");
+	hud.drawText(-5, 20, "CPU Sim: " + rain.simTime.toFixed(4) + "ms");
+	hud.drawText(-5, 30, "SIM MODE: " + (MODE ? 'Gpu' : 'Cpu'));
 
-	hud.drawText(-5, -10, "Controls: [C]lear Data / [R]andom Drops: " +
+	hud.drawText(-5, -10, "Controls: [M] Toggle GPU/CPU Impl [C]lear CPU Data / [R]andom Drops: " +
 		(rain.randomDrops ? 'On' : 'Off') + " / [P]ause Sim");
 	hud.drawText(-5, -20, "Camera: [WASDQE] Move / [↑↓← →] Turn");
 	hud.drawText(-5, -30, "Light: [L] Set Pos / [+-] Intensity");
@@ -128,29 +188,53 @@ function updateScene(dt) {
 		input.keys[input.e.keys.SUBTRACT] = false;
 	}
 
-	// Sim --------------------
-	if (rain.sim) {
-		var simStart = window.performance.now();
-		if (rain.randomDrops && (rain.lastRain += dt) > 0.5) {
-			addAmplitude(
-				Math.floor(Math.random() * rain.size),
-				Math.floor(Math.random() * rain.size),
-				Math.random() * 50
-			);
-			rain.lastRain = 0.0;
-		}
+	if (input.keys[input.e.keys.M]) {
+		MODE = !MODE;
+		input.keys[input.e.keys.M] = false;
+	}
 
-		propagate();
-		for (var i = 0; i < 10; ++i) {
-			rainSim(
-				Math.floor(Math.random() * rain.size),
-				Math.floor(Math.random() * rain.size),
-				50 + 400.0 * Math.random()
-			);
-		}
+	// Sim --------------------/*
+	if (MODE == CPU) {
+		if (rain.sim) {
+			simStart = window.performance.now();
+			if (rain.randomDrops && (rain.lastRain += dt) > 0.5) {
+				addAmplitude(
+					Math.floor(Math.random() * rain.size),
+					Math.floor(Math.random() * rain.size),
+					Math.random() * 50
+				);
+				rain.lastRain = 0.0;
+				rain.randomDrops = false;
+			}
 
-		textureUpdate(rain.texture, rain.a_new);
-		rain.simTime = window.performance.now() - simStart;
+			propagate();
+			for (var i = 0; i < 10; ++i) {
+				rainSim(
+					Math.floor(Math.random() * rain.size),
+					Math.floor(Math.random() * rain.size),
+					50 + 400.0 * Math.random()
+				);
+			}
+
+			textureUpdate(rain.texture, rain.a_new);
+			rain.simTime = window.performance.now() - simStart;
+		}
+	}
+	
+
+	// GPU Version
+	if (MODE == GPU) {
+		gpuPropagate();
+
+		gpuRainSim(
+			Math.floor(Math.random() * rain.size),
+			Math.floor(Math.random() * rain.size),
+			50 + 400.0 * Math.random()
+		);
+
+		frameBufferCopyTexture(scene.offscreen.fbo, 
+			scene.offscreen.a[0], scene.offscreen.prev);
+		gpuDamping();
 	}
 
 	frameTime = window.performance.now() - frameStart;
@@ -158,6 +242,12 @@ function updateScene(dt) {
 
 function drawScene(dt) {
 	drawFloor();
+
+	textureViewer(scene.offscreen.prev, 10, 400, 128, 128);
+	textureViewer(scene.offscreen.a[0], 10, 272, 128, 128);
+	textureViewer(scene.offscreen.a[1], 148, 272, 128, 128);
+	textureViewer(scene.offscreen.new,  10, 148, 128, 128);
+	textureViewer(rain.texture, 10, 10, 128, 128);
 };
 
 // ----------------------------------------------------------------------------
@@ -175,25 +265,21 @@ function clearData() {
 };
 
 function addAmplitude(i, j, strength) {
-	var x0 = i;
-	var y0 = j;
-
-	rain.a[IX(x0, y0)]			+= 6.0 * strength;
-	rain.a[IX(x0, y0 + 1)]		+= 2.0 * strength;
-	rain.a[IX(x0 + 1, y0 + 1)]	+= 1.0 * strength;
-	rain.a[IX(x0 + 1, y0)]		+= 2.0 * strength;
-	rain.a[IX(x0 - 1, y0 + 1)]	+= 1.0 * strength;
-	rain.a[IX(x0, y0 - 1)]		+= 2.0 * strength;
-	rain.a[IX(x0 - 1, y0 - 1)]	+= 1.0 * strength;
-	rain.a[IX(x0 - 1, y0)]		+= 2.0 * strength;
-	rain.a[IX(x0 + 1, y0 - 1)]	+= 1.0 * strength;
+	rain.a[IX(i, j)]			+= 6.0 * strength;
+	rain.a[IX(i, j + 1)]		+= 2.0 * strength;
+	rain.a[IX(i + 1, j + 1)]	+= 1.0 * strength;
+	rain.a[IX(i + 1, j)]		+= 2.0 * strength;
+	rain.a[IX(i - 1, j + 1)]	+= 1.0 * strength;
+	rain.a[IX(i, j - 1)]		+= 2.0 * strength;
+	rain.a[IX(i - 1, j - 1)]	+= 1.0 * strength;
+	rain.a[IX(i - 1, j)]		+= 2.0 * strength;
+	rain.a[IX(i + 1, j - 1)]	+= 1.0 * strength;
 };
 
 function propagate() {
 	var i, j, NEUMANN, offset;
-	var c = 0.499;
-	var damping = 0.988;
 
+	// Done: Propagate Shader
 	for (i = 1; i <= rain.size; ++i) {
 		for (j = 1; j <= rain.size; ++j) {
 			NEUMANN =
@@ -203,7 +289,7 @@ function propagate() {
 				rain.a[IX(i, j + 1)];
 
 			offset = IX(i, j);
-			rain.a_new[offset] = c * ((NEUMANN) - 4.0 * rain.a[offset]) -
+			rain.a_new[offset] = rain.c * ((NEUMANN) - 4.0 * rain.a[offset]) -
 				rain.a_prev[offset] + 2.0 * rain.a[offset];
 		}
 	}
@@ -212,22 +298,104 @@ function propagate() {
 		for (j = 1; j <= rain.size; ++j) {
 			offset = IX(i, j);
 			rain.a_prev[offset] = rain.a[offset];
-			rain.a[offset] = rain.a_new[offset] * damping;
+			rain.a[offset] = rain.a_new[offset] * rain.damping;
 		}
 	}
-}
+};
 
 function rainSim(i, j, strength) {
 	var x, y, r;
 	for (x = i - rain.size / 80; x < i + rain.size / 80; ++x) {
-		for(y = j - rain.size / 80; y < j + rain.size / 80; ++y) {
-			r = Math.sqrt(Math.pow(i - x, 2.0) + Math.pow(j - y, 2.0));
+		for (y = j - rain.size / 80; y < j + rain.size / 80; ++y) {
 			if (i + x > 0 && i + x < rain.size && j + y > 0 && j + y < rain.size) {
+				r = Math.sqrt(Math.pow(i - x, 2.0) + Math.pow(j - y, 2.0));
 				rain.a[IX(i + x, j + y)] += -strength *
 					Math.sin(Math.PI * r * 0.32) / (25 * r + 0.001);
 			}
 		}
 	}
+};
+
+//
+// GPU Version
+//
+function gpuDamping() {
+	frameBufferBind(scene.offscreen.fbo);
+	frameBufferAttach(scene.offscreen.fbo, scene.offscreen.a[0]);
+
+	var shader = changeProgram("damping");
+
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D, scene.offscreen.new.buf);
+	gl.uniform1i(shader.fUniforms.tTexture, 0);
+
+	gl.uniform1f(shader.fUniforms.uDamping, rain.damping);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, fsQuadBuf);
+		gl.vertexAttribPointer(shader.attribs.aPos, 3, gl.FLOAT, false, 20, 0);
+		gl.vertexAttribPointer(shader.attribs.aUV,  2, gl.FLOAT, false, 20, 12);
+	gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+};
+
+function gpuPropagate() {
+	frameBufferBind(scene.offscreen.fbo);
+	frameBufferAttach(scene.offscreen.fbo, scene.offscreen.new);
+	
+	var shader = changeProgram("propagate");
+
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D, scene.offscreen.prev.buf);
+	gl.uniform1i(shader.fUniforms.tPrev, 0);
+
+	gl.activeTexture(gl.TEXTURE1);
+	gl.bindTexture(gl.TEXTURE_2D, scene.offscreen.a[0].buf);
+	gl.uniform1i(shader.fUniforms.tCurrent, 1);
+
+	gl.uniform1f(shader.fUniforms.uSize, (1.0 / 514.0));
+	gl.uniform1f(shader.fUniforms.uC, 	 rain.c);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, fsQuadBuf);
+		gl.vertexAttribPointer(shader.attribs.aPos, 3, gl.FLOAT, false, 20, 0);
+		gl.vertexAttribPointer(shader.attribs.aUV,  2, gl.FLOAT, false, 20, 12);
+	gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+};
+
+function gpuRainSim(x, y, strength) {
+	frameBufferCopyTexture(scene.offscreen.fbo, 
+		scene.offscreen.a[0], scene.offscreen.a[1]);
+
+	frameBufferBind(scene.offscreen.fbo);
+	frameBufferAttach(scene.offscreen.fbo, scene.offscreen.a[0]);
+
+	var shader = changeProgram("rainSim");
+
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D, scene.offscreen.a[1].buf);
+	gl.uniform1i(shader.fUniforms.tCurrent, 0);
+
+	gl.uniform1f(shader.fUniforms.uStrength, strength);
+
+	gl.uniform2f(shader.vUniforms.uOffset, 
+		(x - (rain.size / 2)) * (1.0 / rain.size),
+		(y - (rain.size / 2)) * (1.0 / rain.size));
+	gl.uniform2f(shader.vUniforms.uPOffset, 
+		x * (1.0 / rain.size),
+		y * (1.0 / rain.size));
+
+	gl.uniform2f(shader.fUniforms.uMid, x, y);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, rain.simQuad);
+		gl.vertexAttribPointer(shader.attribs.aPos, 2, gl.FLOAT, false, 8, 0);
+	gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 };
 
 // ----------------------------------------------------------------------------
@@ -265,7 +433,10 @@ function drawFloor() {
 	gl.uniform1i(shader.fUniforms.tSpec, 2);
 
 	gl.activeTexture(gl.TEXTURE3);
-	gl.bindTexture(gl.TEXTURE_2D, rain.texture.buf);
+	if (MODE == GPU)
+		gl.bindTexture(gl.TEXTURE_2D, scene.offscreen.a[0].buf);
+	else
+		gl.bindTexture(gl.TEXTURE_2D, rain.texture.buf);
 	gl.uniform1i(shader.fUniforms.tRain, 3);
 	gl.uniform1f(shader.fUniforms.tRainSize, (1.0 / rain.size));
 
