@@ -9,6 +9,7 @@
 				border: 1px solid #aaa;
 				border-radius: 2px;
 				bottom: 10px;
+				box-shadow: 2px 2px 2px 0px #bbb;
 				height: 15px;
 				padding: 5px;
 				position: absolute;
@@ -23,9 +24,16 @@
 				top: 0;
 			}
 			#container {
-				padding-left: 5px;
-				padding-top: 5px;
-				position: absolute;
+				width: 100%;
+			}
+			#controls {
+				background-color: #eee;
+				border: 1px solid #ccc;
+				border-radius: 2px;
+				box-shadow: 2px 2px 2px 0px #bbb;
+				margin-left: 980px;
+				padding: 5px;
+				width: 210px;
 			}
 			#hud {
 				border: 0;
@@ -34,6 +42,15 @@
 				position: absolute;
 				top: 0;
 				z-index: 2;
+			}
+			#view {
+				padding-left: 5px;
+				padding-top: 5px;
+				position: absolute;
+				width: 960px;
+			}
+			input {
+				vertical-align: middle;
 			}
 		</style>
 	</head>
@@ -46,8 +63,20 @@
 
 		<!-- Something to draw on -->
 		<div id="container">
-			<canvas id="canvas" width="960px" height="540px"></canvas>
-			<canvas id="hud" width="960px" height="540px"></canvas>
+			<div id="view">
+				<canvas id="canvas" width="960px" height="540px"></canvas>
+				<canvas id="hud" width="960px" height="540px"></canvas>
+			</div>
+
+			<div id="controls">
+				<label for="damping">Damping</label><br>
+				<input type="range" id="damping" min="0" max="10" step="0.01" value="9.88">
+				<input type="text" size="5" value="0.988" id="d_val"></input><br><br>
+
+				<label for="rate">Rate</label><br>
+				<input type="range" id="rate" min="0" max="100" step="1" value="50"> 
+				<input type="text" size="5" value="50" id="r_val"></input>
+			</div>
 		</div>
 
 		<div id="attribution">
@@ -334,6 +363,7 @@
 		<script src="scripts/framebuffer.js"></script>
 		<script src="scripts/hud.js"></script>
 		<script src="scripts/input.js"></script>
+		<script src="scripts/rain.js"></script>
 		<script src="scripts/shader.js"></script>
 		<script src="scripts/texture.js"></script>
 		<script src="scripts/scene.js"></script>

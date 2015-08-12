@@ -164,6 +164,6 @@ function shaderLoad(name){
 	shader.bind();
 	shader.unbind();
 
-	console.log("Shader:\t\t" + name + " Compiled");
+	console.log("Shader:\t\t%c" + name + " Compiled", logStyle);
 	return shader;	
 }

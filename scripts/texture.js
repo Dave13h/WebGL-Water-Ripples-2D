@@ -4,11 +4,13 @@
 var textures = [];
 var textureViewerBuf;
 
-var cTexture = function(image, width, height, channels, storage) {
+var cTexture = function(image, width, height, channels, storage, mipmap, af) {
+	this.af = (typeof(af) == "undefined" ? true : af);
 	this.buf = this._buf = gl.createTexture();
 	this.channels = channels || gl.RGBA;
 	this.height = height || 1;
 	this.id = textures.length;
+	this.mipmap = (typeof(mipmap) == "undefined" ? true : mipmap);
 	this.storage = storage || gl.UNSIGNED_BYTE;
 	this.width = width || 1;
 
@@ -22,13 +24,25 @@ var cTexture = function(image, width, height, channels, storage) {
 			gl.texImage2D(gl.TEXTURE_2D, 0, tex.channels, tex.channels, tex.storage, tex.img);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-			gl.generateMipmap(gl.TEXTURE_2D);
-			gl.bindTexture(gl.TEXTURE_2D, null);
+			if (tex.mipmap)
+				gl.generateMipmap(gl.TEXTURE_2D);
+			
+			if (tex.af && glEXT["EXT_texture_filter_anisotropic"] && 
+				glEXT["EXT_texture_filter_anisotropic"].max > 0)
+				gl.texParameterf(gl.TEXTURE_2D,	
+					glEXT["EXT_texture_filter_anisotropic"].TEXTURE_MAX_ANISOTROPY_EXT, 
+					glEXT["EXT_texture_filter_anisotropic"].max);
+
 			tex.buf = tex._buf;
 			tex.width = tex.img.width;
 			tex.height = tex.img.height;
-			console.log("Texture:\t" + tex.img.src +
-				" [" + tex.width + "x" + tex.height + "] Loaded");
+
+			console.log("Texture:\t%c" + tex.img.src +
+				" [" + tex.width + "x" + tex.height + "] [MipMapped: " + 
+				(tex.mipmap ? "True" : "False") + "] [AF: " + 
+				glEXT["EXT_texture_filter_anisotropic"].max + "] Loaded", logStyle);
+
+			gl.bindTexture(gl.TEXTURE_2D, null);
 		}})(this);
 		this.img.src = image;
 
@@ -46,8 +60,19 @@ var cTexture = function(image, width, height, channels, storage) {
     		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 		}
 
+		if (this.mipmap)
+			gl.generateMipmap(gl.TEXTURE_2D);
+
+		if (this.af && glEXT["EXT_texture_filter_anisotropic"] && 
+			glEXT["EXT_texture_filter_anisotropic"].max > 0)
+			gl.texParameterf(gl.TEXTURE_2D,	
+				glEXT["EXT_texture_filter_anisotropic"].TEXTURE_MAX_ANISOTROPY_EXT, 
+				glEXT["EXT_texture_filter_anisotropic"].max);
+
 		gl.bindTexture(gl.TEXTURE_2D, null);
-		console.log("Texture:\tBlank" + " [" + this.width + "x" + this.height + "] Created");
+		console.log("Texture:\t%cBlank" + " [" + this.width + "x" + this.height + "] [MipMapped: " + 
+			(this.mipmap ? "True" : "False") + "] [AF: " + 
+			glEXT["EXT_texture_filter_anisotropic"].max + "] Created", logStyle);
 	}
 
 	textures.push(this);
