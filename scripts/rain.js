@@ -74,9 +74,7 @@ cRain.prototype.damping = function() {
 
 	var shader = changeProgram("damping");
 
-	gl.activeTexture(gl.TEXTURE0);
-	gl.bindTexture(gl.TEXTURE_2D, this.textures.new.buf);
-	gl.uniform1i(shader.fUniforms.tTexture, 0);
+	textureBind(this.textures.new, shader.fUniforms.tTexture, 0);
 
 	gl.uniform1f(shader.fUniforms.uDamping, this.dampingFactor);
 
@@ -95,13 +93,8 @@ cRain.prototype.propagate = function() {
 
 	var shader = changeProgram("propagate");
 
-	gl.activeTexture(gl.TEXTURE0);
-	gl.bindTexture(gl.TEXTURE_2D, this.textures.prev.buf);
-	gl.uniform1i(shader.fUniforms.tPrev, 0);
-
-	gl.activeTexture(gl.TEXTURE1);
-	gl.bindTexture(gl.TEXTURE_2D, this.textures.a[0].buf);
-	gl.uniform1i(shader.fUniforms.tCurrent, 1);
+	textureBind(this.textures.prev, shader.fUniforms.tPrev, 0);
+	textureBind(this.textures.a[0], shader.fUniforms.tCurrent, 1);
 
 	gl.uniform1f(shader.fUniforms.uSize, (1.0 / this.size));
 	gl.uniform1f(shader.fUniforms.uC, this.cFactor);
@@ -124,9 +117,7 @@ cRain.prototype.simulate = function(x, y, strength) {
 
 	var shader = changeProgram("simulate");
 
-	gl.activeTexture(gl.TEXTURE0);
-	gl.bindTexture(gl.TEXTURE_2D, this.textures.a[1].buf);
-	gl.uniform1i(shader.fUniforms.tCurrent, 0);
+	textureBind(this.textures.a[1], shader.fUniforms.tCurrent, 0);
 
 	gl.uniform1f(shader.fUniforms.uStrength, strength);
 	gl.uniform1f(shader.fUniforms.uSize, this.size);

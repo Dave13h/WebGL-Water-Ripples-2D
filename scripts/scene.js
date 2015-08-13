@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------------
 // Scene
 // ----------------------------------------------------------------------------
-var camera = new cCamera([0.0, -2.0, -1.25], [300.0, 0.0, 0.0]);
+var camera = new cCamera([1.5, -1.0, -1.5], [338.0, 315.0, 0.0]);
 var debugView = false;
 var fsQuadBuf;
 var scene = {
@@ -23,6 +23,7 @@ function initScene() {
 	shaders["floor"]		= shaderLoad("floor");
 	shaders["propagate"]	= shaderLoad("propagate");
 	shaders["simulate"]		= shaderLoad("simulate");
+	shaders["skybox"]		= shaderLoad("skybox");
 
 	// Entities ---------------
 	scene.entities["floor"] = {
@@ -47,16 +48,21 @@ function initScene() {
 		 1.0, 0.0, -1.0,	1.0, 0.0,	0.0, 1.0, 0.0,	1.0, 0.0, 0.0,	0.0, 0.0, 1.0
 	]), gl.STATIC_DRAW);
 
+	scene.entities["skybox"] = new cSkybox();
+
 	// Lights -----------------
 	scene.lights["ambient"] = {
-		colour: 	[0.10, 0.10, 0.25]
+		colour: 	[0.13, 0.17, 0.22]
 	};
 	scene.lights["point"] = {
 		attenuation: 0.1,
-		colour:  	[1.0, 1.0, 0.15],
-		position: 	[-0.25, 0.25, -0.25],
-		intensity: 	0.50
+		colour:  	[1.00, 0.85, 0.40],
+		position: 	[1.00, 0.25, 0.0],
+		intensity: 	0.70,
 	};
+	scene.lights["point"].setIntensity = function(val) { this.intensity = val; };
+	sliderController('sun',	's_val', 
+		scene.lights["point"].setIntensity.bind(scene.lights["point"]), 10, 1);
 
 	// Offscreen Buffers ------
 	scene.offscreen.fbo = frameBufferCreate(scene.rain.textures.a[0]);
@@ -138,6 +144,9 @@ function updateScene(dt) {
 };
 
 function drawScene(dt) {
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+	scene.entities["skybox"].draw(camera);
 	drawFloor();
 
 	if (debugView) {
@@ -155,8 +164,6 @@ function drawFloor() {
 	var shader = changeProgram("floor"),
 		floor = scene.entities["floor"];
 
-	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
 	// Camera
 	gl.uniformMatrix4fv(shader.vUniforms.uCamMat, false, camera.camMat);
 	gl.uniformMatrix4fv(shader.vUniforms.uPMat, false, camera.pMat);
@@ -170,21 +177,11 @@ function drawFloor() {
 	gl.uniform3fv(shader.fUniforms.lPointPosition, 	scene.lights["point"].position);
 
 	// Textures
-	gl.activeTexture(gl.TEXTURE0);
-	gl.bindTexture(gl.TEXTURE_2D, floor.textures[0].buf);
-	gl.uniform1i(shader.fUniforms.tAlbedo, 0);
+	textureBind(floor.textures[0], shader.fUniforms.tAlbedo, 0);
+	textureBind(floor.textures[1], shader.fUniforms.tNormal, 1);
+	textureBind(floor.textures[2], shader.fUniforms.tSpec, 	 2);
+	textureBind(scene.rain.textures.a[0], shader.fUniforms.tRain, 3);
 
-	gl.activeTexture(gl.TEXTURE1);
-	gl.bindTexture(gl.TEXTURE_2D, floor.textures[1].buf);
-	gl.uniform1i(shader.fUniforms.tNormal, 1);
-
-	gl.activeTexture(gl.TEXTURE2);
-	gl.bindTexture(gl.TEXTURE_2D, floor.textures[2].buf);
-	gl.uniform1i(shader.fUniforms.tSpec, 2);
-
-	gl.activeTexture(gl.TEXTURE3);
-	gl.bindTexture(gl.TEXTURE_2D, scene.rain.textures.a[0].buf);
-	gl.uniform1i(shader.fUniforms.tRain, 3);
 	gl.uniform1f(shader.fUniforms.tRainSize, (1.0 / scene.rain.size));
 
 	// Draw Quad

@@ -13,9 +13,8 @@
 				height: 15px;
 				padding: 5px;
 				position: absolute;
-				right: 10px;
+				right: 5px;
 				text-align: right;
-				width: 530px;
 			}
 			#canvas {
 				border: 0;
@@ -75,7 +74,11 @@
 
 				<label for="rate">Rate</label><br>
 				<input type="range" id="rate" min="0" max="100" step="1" value="50">
-				<input type="text" size="5" value="50" id="r_val"></input>
+				<input type="text" size="5" value="50" id="r_val"></input><br><br>
+
+				<label for="sun">Sun Brightness</label><br>
+				<input type="range" id="sun" min="0" max="10" step="1" value="7">
+				<input type="text" size="5" value="0.7" id="s_val"></input>
 			</div>
 		</div>
 
@@ -84,7 +87,9 @@
 				by Aethersis</a> -
 			<a href="http://glmatrix.net/" target="_blank">glMatrix.js</a> -
 			<a href="http://opengameart.org/content/brick-wall">Brick wall
-				texture by JosipKladaric</a>
+				texture by JosipKladaric</a> -
+			<a href="https://www.93i.de/products/media/skybox-texture-set-1">Skybox
+				texture by Heiko Irrgang</a>
 		</div>
 
 		<!-- Floor Shader -->
@@ -289,6 +294,32 @@
 			}
 		</script>
 
+		<!-- Skybox Shader -->
+		<script id="skybox-vs" type="x-shader/x-vertex">
+			attribute vec3 aPos;
+			attribute vec3 aNormal;
+
+			uniform mat4 uCamMat;
+			uniform mat4 uPMat;
+
+			varying vec3 vNormal;
+
+			void main(void) {
+				vNormal = aPos;
+				gl_Position = uPMat * uCamMat * vec4(aPos, 1.0);
+			}
+		</script>
+		<script id="skybox-fs" type="x-shader/x-fragment">
+			precision highp float;
+
+			uniform samplerCube tTexture;
+			varying vec3 vNormal;
+
+			void main(void) {
+				gl_FragColor = textureCube(tTexture, vNormal);
+			}
+		</script>
+
 		<!-- Copy Texture Shader -->
 		<script id="copyTexture-vs" type="x-shader/x-vertex">
 			attribute vec3 aPos;
@@ -356,9 +387,10 @@
 		<script src="scripts/hud.js"></script>
 		<script src="scripts/input.js"></script>
 		<script src="scripts/rain.js"></script>
-		<script src="scripts/shader.js"></script>
-		<script src="scripts/texture.js"></script>
 		<script src="scripts/scene.js"></script>
+		<script src="scripts/shader.js"></script>
+		<script src="scripts/skybox.js"></script>
+		<script src="scripts/texture.js"></script>
 
 		<!-- Include last ;) -->
 		<script src="scripts/main.js"></script>
