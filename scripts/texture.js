@@ -5,14 +5,16 @@ var textures = [];
 var textureViewerBuf;
 
 var cTexture = function(image, width, height, channels, storage, mipmap, af) {
-	this.af = (typeof(af) == "undefined" ? true : af);
-	this.buf = this._buf = gl.createTexture();
+	
+	this.af 	= (typeof(af) == "undefined" ? true : af);
+	this.buf 	= this._buf = gl.createTexture();
 	this.channels = channels || gl.RGBA;
 	this.height = height || 1;
-	this.id = textures.length;
+	this.id 	= textures.length;
 	this.mipmap = (typeof(mipmap) == "undefined" ? true : mipmap);
-	this.storage = storage || gl.UNSIGNED_BYTE;
-	this.width = width || 1;
+	this.storage= storage || gl.UNSIGNED_BYTE;
+	this.type 	= gl.TEXTURE_2D;
+	this.width 	= width || 1;
 
 	// Load image from file
 	if (typeof(image) == "string") {
@@ -48,8 +50,8 @@ var cTexture = function(image, width, height, channels, storage, mipmap, af) {
 		}})(this);
 		this.img.src = image;
 
-	// Image is array
-	} else {
+	// Image is Float32Array
+	} else if (image.BYTES_PER_ELEMENT) {
 		gl.bindTexture(gl.TEXTURE_2D, this.buf);
 		gl.texImage2D(gl.TEXTURE_2D, 0, this.channels,
 			this.width, this.height, 0,
@@ -72,12 +74,71 @@ var cTexture = function(image, width, height, channels, storage, mipmap, af) {
 				glEXT["EXT_texture_filter_anisotropic"].max);
 
 		gl.bindTexture(gl.TEXTURE_2D, null);
-		console.log("Texture:\t%cBlank" + " [" + this.width + "x" + this.height + "] [MipMapped: " +
-			(this.mipmap ? "True" : "False") + "] [AF: " +
+		console.log("Texture:\t%cImage From Data" + " [" + this.width + "x" + this.height + 
+			"] [MipMapped: " + (this.mipmap ? "True" : "False") + "] [AF: " +
 			glEXT["EXT_texture_filter_anisotropic"].max + "] Created", logStyle);
+	} else {
+		this.buf = textures[0].buf; // Use default texture until loaded
+		
+		this.imgs = [];
+		this.loadCount = image.length;
+		for (var i in image) {
+			var img = new Image();
+			img.onload = (function(tex, i) { return function() {
+
+				// Wait until they are all loaded
+				if (--tex.loadCount == 0) {
+					tex.width = tex.imgs[0].width;
+					tex.height = tex.imgs[0].height;
+					
+					gl.bindTexture(gl.TEXTURE_CUBE_MAP, tex._buf);
+					var names = [];
+					for (var ic = 0; ic < 6; ++ic) {
+						gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + ic, 0, 
+							tex.channels, tex.channels, tex.storage, tex.imgs[ic]);
+						names.push(tex.imgs[ic].src);
+						delete tex.imgs[ic];	
+					}
+
+					console.log("Texture:\t%cCubemap " + "[" + tex.width + "x" + tex.height + 
+						"] [MipMapped: " + (tex.mipmap ? "True" : "False") + "] [AF: " +
+						glEXT["EXT_texture_filter_anisotropic"].max + "] Loaded\n\t\t\t" +
+						names.join("\n\t\t\t"), logStyle);
+					
+					gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+					gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, 
+						gl.LINEAR_MIPMAP_NEAREST);
+
+					if (tex.mipmap)
+						gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+
+					if (tex.af && glEXT["EXT_texture_filter_anisotropic"] &&
+						glEXT["EXT_texture_filter_anisotropic"].max > 0)
+						gl.texParameterf(gl.TEXTURE_CUBE_MAP,
+							glEXT["EXT_texture_filter_anisotropic"].TEXTURE_MAX_ANISOTROPY_EXT,
+							glEXT["EXT_texture_filter_anisotropic"].max);
+
+					tex.type = gl.TEXTURE_CUBE_MAP;
+					tex.buf = tex._buf;
+					gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+				}
+			}})(this, i);
+			img.src = image[i];			
+			this.imgs.push(img);
+		}
 	}
 
 	textures.push(this);
+};
+
+// ----------------------------------------------------------------------------
+// Helper Functions 
+// ----------------------------------------------------------------------------
+function textureBind(texture, loc, tid) {
+	tid = tid || 0;
+	gl.activeTexture(gl.TEXTURE0 + tid);
+	gl.bindTexture(texture.type, texture.buf);
+	gl.uniform1i(loc, tid);
 };
 
 function textureUpdate(texture, data) {
@@ -96,9 +157,7 @@ function textureViewer(texture, x, y, size_x, size_y) {
 	size_x = size_x || texture.width;
 	size_y = size_y || texture.height;
 
-	gl.activeTexture(gl.TEXTURE0);
-	gl.bindTexture(gl.TEXTURE_2D, texture.buf);
-	gl.uniform1i(shader.fUniforms.tTexture, 0);
+	textureBind(texture, shader.fUniforms.tTexture, 0);
 
 	gl.uniform2f(shader.vUniforms.uOffset, x, y);
 	gl.uniform2f(shader.vUniforms.uSize, size_x, size_y);
@@ -115,6 +174,9 @@ function textureViewer(texture, x, y, size_x, size_y) {
 	gl.enable(gl.CULL_FACE);
 };
 
+// ----------------------------------------------------------------------------
+// Init Functions 
+// ----------------------------------------------------------------------------
 function initTextures() {
 	// Default texture
 	new cTexture(new Uint8Array([255, 0, 255, 255]), 1, 1);

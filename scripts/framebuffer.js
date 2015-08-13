@@ -42,9 +42,7 @@ function frameBufferCopyTexture(fbo, textureFrom, textureTo) {
 	
 	var shader = changeProgram("copyTexture");
 
-	gl.activeTexture(gl.TEXTURE0);
-	gl.bindTexture(gl.TEXTURE_2D, textureFrom.buf);
-	gl.uniform1i(shader.fUniforms.tTexture, 0);
+	textureBind(textureFrom, shader.fUniforms.tTexture, 0);
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, fsQuadBuf);
 		gl.vertexAttribPointer(shader.attribs.aPos, 3, gl.FLOAT, false, 20, 0);
