@@ -74,7 +74,7 @@
 				<input type="text" size="5" value="0.988" id="d_val"></input><br><br>
 
 				<label for="rate">Rate</label><br>
-				<input type="range" id="rate" min="0" max="100" step="1" value="50"> 
+				<input type="range" id="rate" min="0" max="100" step="1" value="50">
 				<input type="text" size="5" value="50" id="r_val"></input>
 			</div>
 		</div>
@@ -184,9 +184,8 @@
 		</script>
 
 		<!-- Rain Sim Shader -->
-		<script id="rainSim-vs" type="x-shader/x-vertex">
+		<script id="simulate-vs" type="x-shader/x-vertex">
 			attribute vec2 aPos;
-			//attribute vec2 aUV;
 
 			uniform vec2 uOffset;
 
@@ -200,35 +199,28 @@
 				gl_Position = vec4(vPos, 0.0, 1.0);
 			}
 		</script>
-		<script id="rainSim-fs" type="x-shader/x-fragment">
+		<script id="simulate-fs" type="x-shader/x-fragment">
 			precision highp float;
 
 			#define PI 3.31415926535
 
 			uniform sampler2D tCurrent;
 			uniform float uStrength;
+			uniform vec2  uPOffset;
+			uniform float uSize;
 
-			uniform vec2 uMid;
-			uniform vec2 uPOffset;
 			varying vec2 vLPos;
-
 			varying vec2 vPos;
-			varying float vR;
 
 			void main(void) {
 				float cur = texture2D(tCurrent, vPos).r;
 
 				// Mid hit point
 				vec2 dFromMid = vec2(
-					uPOffset.x - vLPos.x,
-					uPOffset.y - vLPos.y);
+					uSize * (uPOffset.x - vLPos.x),
+					uSize * (uPOffset.y - vLPos.y));
 
-				vec2 pixelPos = vec2(
-					514.0 * dFromMid.x,
-					514.0 * dFromMid.y
-				);
-
-				float r = sqrt(pow(pixelPos.x, 2.0) + pow(pixelPos.y, 2.0));
+				float r = sqrt(pow(dFromMid.x, 2.0) + pow(dFromMid.y, 2.0));
 
 				float sim = cur + -uStrength * sin(PI * r * 0.32) / (25.0 * r + 0.001);
 				gl_FragColor = vec4(sim, sim, sim, 1.0);
@@ -257,10 +249,10 @@
 			varying vec2 vUV;
 
 			float neumann(vec2 offset) {
-				return 
+				return
 					texture2D(tCurrent, vec2(offset.s + uSize, offset.t)).r +
-					texture2D(tCurrent, vec2(offset.s - uSize, offset.t)).r + 
-					texture2D(tCurrent, vec2(offset.s, offset.t - uSize)).r + 
+					texture2D(tCurrent, vec2(offset.s - uSize, offset.t)).r +
+					texture2D(tCurrent, vec2(offset.s, offset.t - uSize)).r +
 					texture2D(tCurrent, vec2(offset.s, offset.t + uSize)).r;
 			}
 
@@ -334,7 +326,7 @@
 
 			void main(void) {
 				vUV = aUV;
-				
+
 				vec3 pos = aPos;
 				pos.x += uOffset.x + (pos.x * uSize.x);
 				pos.y += uOffset.y + (pos.y * uSize.y);
@@ -347,7 +339,7 @@
 			precision highp float;
 
 			uniform sampler2D tTexture;
-			
+
 			varying vec2 vUV;
 
 			void main(void) {

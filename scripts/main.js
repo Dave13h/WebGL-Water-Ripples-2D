@@ -31,9 +31,9 @@ console.log("GL Max Fragment Uniform Vectors:%c %s", logStyle,
 	gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS));
 console.log("GL Max Combined Texture Image Units:%c %s", logStyle,
 	gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS));
-console.log("GL Max Vertex Texture Image Units:%c %s", logStyle, 
+console.log("GL Max Vertex Texture Image Units:%c %s", logStyle,
 	gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS));
-console.log("GL Max Texture Image Units:%c %s", logStyle, 
+console.log("GL Max Texture Image Units:%c %s", logStyle,
 	gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS));
 console.log("GL RGBA:%c %s", logStyle,
 	gl.getParameter(gl.RED_BITS) + '/' +
@@ -73,8 +73,8 @@ glEXT["EXT_texture_filter_anisotropic"] = gl.getExtension('EXT_texture_filter_an
 if (glEXT["EXT_texture_filter_anisotropic"]) {
 	glEXT["EXT_texture_filter_anisotropic"].max = gl.getParameter(
 		glEXT["EXT_texture_filter_anisotropic"].MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-	console.log("Extension:\t%cEXT_texture_filter_anisotropic [Max: " + 
-		glEXT["EXT_texture_filter_anisotropic"].max + "] Loaded", logStyle);	
+	console.log("Extension:\t%cEXT_texture_filter_anisotropic [Max: " +
+		glEXT["EXT_texture_filter_anisotropic"].max + "] Loaded", logStyle);
 }
 
 // ----------------------------------------------------------------------------
@@ -87,16 +87,34 @@ initScene();
 // ----------------------------------------------------------------------------
 // Frame Stuff
 // ----------------------------------------------------------------------------
-var lastTick = 0.0;
+var dt 				= 0.0,
+	lastTick 		= 0.0,
+	fps 			= 0,
+	frameCount		= 0,
+	frameTime 		= 0.0,
+	frameTimeLast	= 0.0,
+	frameStart;
+
 function mainLoop(now) {
+	frameTime = now - frameStart;
+	frameStart = now;
+	frameCount++;
+
 	// Timer
 	now *= 0.001;
-	var dt = now - lastTick;
+	dt = now - lastTick;
 	lastTick = now;
 
 	// Scene
 	updateScene(dt);
 	drawScene(dt);
+
+	// Frame Counter
+	if (frameStart - frameTimeLast >= 1000) {
+		fps = frameCount;
+		frameCount = 0;
+		frameTimeLast = frameStart;
+	}
 
 	// Queue up next frame
 	window.requestAnimationFrame(mainLoop);
@@ -122,7 +140,7 @@ function sliderController(elem, val, target, div, ps) {
 	ps = ps || 0;
 	div = div || null;
 	document.getElementById(elem).addEventListener("mousemove", function(){
-		document.getElementById(val).value = 
+		document.getElementById(val).value =
 			Number((div ? this.value / div : this.value)).toFixed(ps);
 
 		var evt = document.createEvent("HTMLEvents");
@@ -131,9 +149,9 @@ function sliderController(elem, val, target, div, ps) {
 	});
 	document.getElementById(val).addEventListener("change", function(){
 
-		var max = Number(div ? document.getElementById(elem).max / div : 
+		var max = Number(div ? document.getElementById(elem).max / div :
 			document.getElementById(elem).max);
-		var min = Number(div ? document.getElementById(elem).min / div : 
+		var min = Number(div ? document.getElementById(elem).min / div :
 			document.getElementById(elem).min);
 
 		if (isNaN(this.value))
@@ -142,7 +160,7 @@ function sliderController(elem, val, target, div, ps) {
 			this.value = Number(max).toFixed(ps);
 		else if (this.value < min)
 			this.value = Number(min).toFixed(ps);
-		
+
 		if (target)
 			target(Number(this.value));
 	});

@@ -8,21 +8,21 @@ var scene = {
 	entities: 	[],
 	lights: 	[],
 	offscreen: 	{},
-	rain: 		null 
+	rain: 		null
 };
 
 function initScene() {
 	// Simulator --------------
 	scene.rain = new cRain();
 	sliderController('damping', 'd_val', scene.rain.setDamping.bind(scene.rain), 10, 3);
-	sliderController('rate', 'r_val', scene.rain.setRate.bind(scene.rain));
+	sliderController('rate', 	'r_val', scene.rain.setRate.bind(scene.rain));
 
 	// Shaders ----------------
-	shaders["copyTexture"] 	= shaderLoad("copyTexture");
-	shaders["damping"] 	 	= shaderLoad("damping");
-	shaders["floor"] 		= shaderLoad("floor");
+	shaders["copyTexture"]	= shaderLoad("copyTexture");
+	shaders["damping"]		= shaderLoad("damping");
+	shaders["floor"]		= shaderLoad("floor");
 	shaders["propagate"]	= shaderLoad("propagate");
-	shaders["rainSim"] 	 	= shaderLoad("rainSim");
+	shaders["simulate"]		= shaderLoad("simulate");
 
 	// Entities ---------------
 	scene.entities["floor"] = {
@@ -76,13 +76,7 @@ function initScene() {
 // ----------------------------------------------------------------------------
 // Frame Functions
 // ----------------------------------------------------------------------------
-var frameTime = 0.0,
-	frameStart,
-	simStart;
-
 function updateScene(dt) {
-	frameStart = window.performance.now();
-
 	// Update Camera ----------
 	camera.update(dt);
 
@@ -101,7 +95,7 @@ function updateScene(dt) {
 		scene.lights["point"].position[2].toFixed(2) + "] Intensity [" +
 		scene.lights["point"].intensity.toFixed(2) + "]");
 
-	hud.drawText(-5, 10, "Frame: " + frameTime.toFixed(4) + "ms");
+	hud.drawText(-5, 10, frameTime.toFixed(2) + "ms / " + fps + "fps");
 
 	hud.drawText(-5, -10, "Controls: [Z] Debug View / [P] Pause Simulation");
 	hud.drawText(-5, -20, "Camera: [WASDQE] Move / [↑↓← →] Turn");
@@ -139,9 +133,8 @@ function updateScene(dt) {
 		input.keys[input.e.keys.Z] = false;
 	}
 
+	// Actually doing stuff ---
 	scene.rain.run(dt);
-
-	frameTime = window.performance.now() - frameStart;
 };
 
 function drawScene(dt) {
