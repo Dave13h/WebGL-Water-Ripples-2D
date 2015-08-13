@@ -26,11 +26,11 @@ var cTexture = function(image, width, height, channels, storage, mipmap, af) {
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
 			if (tex.mipmap)
 				gl.generateMipmap(gl.TEXTURE_2D);
-			
-			if (tex.af && glEXT["EXT_texture_filter_anisotropic"] && 
+
+			if (tex.af && glEXT["EXT_texture_filter_anisotropic"] &&
 				glEXT["EXT_texture_filter_anisotropic"].max > 0)
-				gl.texParameterf(gl.TEXTURE_2D,	
-					glEXT["EXT_texture_filter_anisotropic"].TEXTURE_MAX_ANISOTROPY_EXT, 
+				gl.texParameterf(gl.TEXTURE_2D,
+					glEXT["EXT_texture_filter_anisotropic"].TEXTURE_MAX_ANISOTROPY_EXT,
 					glEXT["EXT_texture_filter_anisotropic"].max);
 
 			tex.buf = tex._buf;
@@ -38,11 +38,13 @@ var cTexture = function(image, width, height, channels, storage, mipmap, af) {
 			tex.height = tex.img.height;
 
 			console.log("Texture:\t%c" + tex.img.src +
-				" [" + tex.width + "x" + tex.height + "] [MipMapped: " + 
-				(tex.mipmap ? "True" : "False") + "] [AF: " + 
+				" [" + tex.width + "x" + tex.height + "] [MipMapped: " +
+				(tex.mipmap ? "True" : "False") + "] [AF: " +
 				glEXT["EXT_texture_filter_anisotropic"].max + "] Loaded", logStyle);
 
 			gl.bindTexture(gl.TEXTURE_2D, null);
+
+			delete tex.img;
 		}})(this);
 		this.img.src = image;
 
@@ -63,15 +65,15 @@ var cTexture = function(image, width, height, channels, storage, mipmap, af) {
 		if (this.mipmap)
 			gl.generateMipmap(gl.TEXTURE_2D);
 
-		if (this.af && glEXT["EXT_texture_filter_anisotropic"] && 
+		if (this.af && glEXT["EXT_texture_filter_anisotropic"] &&
 			glEXT["EXT_texture_filter_anisotropic"].max > 0)
-			gl.texParameterf(gl.TEXTURE_2D,	
-				glEXT["EXT_texture_filter_anisotropic"].TEXTURE_MAX_ANISOTROPY_EXT, 
+			gl.texParameterf(gl.TEXTURE_2D,
+				glEXT["EXT_texture_filter_anisotropic"].TEXTURE_MAX_ANISOTROPY_EXT,
 				glEXT["EXT_texture_filter_anisotropic"].max);
 
 		gl.bindTexture(gl.TEXTURE_2D, null);
-		console.log("Texture:\t%cBlank" + " [" + this.width + "x" + this.height + "] [MipMapped: " + 
-			(this.mipmap ? "True" : "False") + "] [AF: " + 
+		console.log("Texture:\t%cBlank" + " [" + this.width + "x" + this.height + "] [MipMapped: " +
+			(this.mipmap ? "True" : "False") + "] [AF: " +
 			glEXT["EXT_texture_filter_anisotropic"].max + "] Created", logStyle);
 	}
 

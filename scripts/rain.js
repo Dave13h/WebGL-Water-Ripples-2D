@@ -8,7 +8,7 @@ var cRain = function() {
 	this.paused 		= false;
 	this.randomDrops 	= false;
 	this.rate 			= 10;
-	this.rateTimer 		= 0.0; 
+	this.rateTimer 		= 0.0;
 	this.simTime 		= 0.0;
 	this.size 			= 512;
 
@@ -92,7 +92,7 @@ cRain.prototype.damping = function() {
 cRain.prototype.propagate = function() {
 	frameBufferBind(scene.offscreen.fbo);
 	frameBufferAttach(scene.offscreen.fbo, this.textures.new);
-	
+
 	var shader = changeProgram("propagate");
 
 	gl.activeTexture(gl.TEXTURE0);
@@ -103,7 +103,7 @@ cRain.prototype.propagate = function() {
 	gl.bindTexture(gl.TEXTURE_2D, this.textures.a[0].buf);
 	gl.uniform1i(shader.fUniforms.tCurrent, 1);
 
-	gl.uniform1f(shader.fUniforms.uSize, (1.0 / (this.size + 2)));
+	gl.uniform1f(shader.fUniforms.uSize, (1.0 / this.size));
 	gl.uniform1f(shader.fUniforms.uC, this.cFactor);
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, fsQuadBuf);
@@ -116,28 +116,27 @@ cRain.prototype.propagate = function() {
 };
 
 cRain.prototype.simulate = function(x, y, strength) {
-	frameBufferCopyTexture(scene.offscreen.fbo, 
+	frameBufferCopyTexture(scene.offscreen.fbo,
 		this.textures.a[0], this.textures.a[1]);
 
 	frameBufferBind(scene.offscreen.fbo);
 	frameBufferAttach(scene.offscreen.fbo, this.textures.a[0]);
 
-	var shader = changeProgram("rainSim");
+	var shader = changeProgram("simulate");
 
 	gl.activeTexture(gl.TEXTURE0);
 	gl.bindTexture(gl.TEXTURE_2D, this.textures.a[1].buf);
 	gl.uniform1i(shader.fUniforms.tCurrent, 0);
 
 	gl.uniform1f(shader.fUniforms.uStrength, strength);
+	gl.uniform1f(shader.fUniforms.uSize, this.size);
 
-	gl.uniform2f(shader.vUniforms.uOffset, 
-		(x - (this.size / 2)) * (1.0 / this.size),
-		(y - (this.size / 2)) * (1.0 / this.size));
-	gl.uniform2f(shader.vUniforms.uPOffset, 
+	gl.uniform2f(shader.vUniforms.uOffset,
+		(x - (this.size / 2)) * (1.0 / this.size * 2),
+		(y - (this.size / 2)) * (1.0 / this.size * 2));
+	gl.uniform2f(shader.vUniforms.uPOffset,
 		x * (1.0 / this.size),
 		y * (1.0 / this.size));
-
-	gl.uniform2f(shader.fUniforms.uMid, x, y);
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.simQuad);
 		gl.vertexAttribPointer(shader.attribs.aPos, 2, gl.FLOAT, false, 8, 0);
