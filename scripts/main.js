@@ -12,13 +12,22 @@ gl.enable(gl.CULL_FACE);
 gl.cullFace(gl.BACK);
 gl.frontFace(gl.CCW);
 
+// list Caps ------------------
+var unmaskedRenderer= '';
+var unmaskedVendor 	= '';
+var debugRenderInfo = gl.getExtension('WEBGL_debug_renderer_info');
+if (debugRenderInfo) {
+	unmaskedRenderer= " (" + gl.getParameter(debugRenderInfo.UNMASKED_RENDERER_WEBGL) + ")";
+	unmaskedVendor 	= " (" + gl.getParameter(debugRenderInfo.UNMASKED_VENDOR_WEBGL) + ")";
+}
+
 var logStyle = "color: #448AF2";
-console.log("GL Version:%c %s", logStyle,
+console.log("GL Version:%c\t%s", logStyle,
 	gl.getParameter(gl.VERSION));
-console.log("GL Vendor:%c %s", logStyle,
-	gl.getParameter(gl.VENDOR));
-console.log("GL Renderer:%c %s", logStyle,
-	gl.getParameter(gl.RENDERER));
+console.log("GL Vendor:%c\t%s", logStyle,
+	gl.getParameter(gl.VENDOR) + unmaskedVendor);
+console.log("GL Renderer:%c%s", logStyle,
+	gl.getParameter(gl.RENDERER) + unmaskedRenderer);
 console.log("GL Shader Version:%c %s", logStyle,
 	gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
 console.log("GL Max Vertex Attributes:%c %s", logStyle,
@@ -52,12 +61,18 @@ console.log("GL Context:%c %s", logStyle, canvas.clientWidth + "x" + canvas.clie
 
 var glAttribs = gl.getContextAttributes();
 console.log("GL Context Attributes", "");
-console.log("\t%c%sAlpha", logStyle, glAttribs.alpha);
-console.log("\t%c%sAntiAlias:", logStyle, glAttribs.antialias);
-console.log("\t%c%sDepth:", logStyle, glAttribs.depth);
-console.log("\t%c%sStencil:", logStyle, glAttribs.stencil);
-console.log("\t%c%sPremultipled Alpha:", logStyle, glAttribs.premultipliedAlpha);
-console.log("\t%c%sPreserve Drawing Buffer:", logStyle, glAttribs.preserveDrawingBuffer);
+console.log("\t%cAlpha: %s", logStyle,
+	(glAttribs.alpha ? "Enabled" : "Disabled"));
+console.log("\t%cAntiAlias: %s", logStyle,
+	(glAttribs.antialias ? "Enabled" : "Disabled"));
+console.log("\t%cDepth: %s", logStyle,
+	(glAttribs.depth ? "Enabled" : "Disabled"));
+console.log("\t%cStencil: %s", logStyle,
+	(glAttribs.stencil ? "Enabled" : "Disabled"));
+console.log("\t%cPremultipled Alpha: %s", logStyle,
+	(glAttribs.premultipliedAlpha ? "Enabled" : "Disabled"));
+console.log("\t%cPreserve Drawing Buffer: %s", logStyle,
+	(glAttribs.preserveDrawingBuffer ? "Enabled" : "Disabled"));
 
 console.log("----------------------------------------------------------------------------\n");
 
