@@ -15,7 +15,9 @@ function initScene() {
 	// Simulator --------------
 	scene.rain = new cRain();
 	sliderController('damping', 'd_val', scene.rain.setDamping.bind(scene.rain), 10, 3);
-	sliderController('rate', 	'r_val', scene.rain.setRate.bind(scene.rain));
+	sliderController('dropsize', 'ds_val', scene.rain.setDropSize.bind(scene.rain), 100, 4);
+	sliderController('maxStr', 'str_val', scene.rain.setMaxStr.bind(scene.rain));
+	sliderController('rate', 'r_val', scene.rain.setRate.bind(scene.rain));
 
 	// Shaders ----------------
 	shaders["copyTexture"]	= shaderLoad("copyTexture");
@@ -29,12 +31,23 @@ function initScene() {
 	scene.entities["floor"] = {
 		buf: 		gl.createBuffer(),
 		mat: 		mat4.create(),
+		textureSet: 0,
 		textures: 	[
-			new cTexture('textures/brick_wall2-diff-1024.png'),
-			new cTexture('textures/brick_wall2-nor-1024.png'),
-			new cTexture('textures/brick_wall2-spec-1024.png')
+			[
+				new cTexture('textures/brick_wall2-diff-1024.png'),
+				new cTexture('textures/brick_wall2-nor-1024.png'),
+				new cTexture('textures/brick_wall2-spec-1024.png')
+			],
+			[
+				new cTexture('textures/pebbles_color_1024.jpg'),
+				new cTexture('textures/pebbles_normal_1024.jpg'),
+				new cTexture('textures/pebbles_bump_1024.jpg')				
+			]
 		]
 	};
+	scene.entities["floor"].setTextureSet = function(val) { this.textureSet = val; };
+	selectController('tSet', 
+		scene.entities["floor"].setTextureSet.bind(scene.entities["floor"]));
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, scene.entities["floor"].buf);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
@@ -105,7 +118,7 @@ function updateScene(dt) {
 
 	hud.drawText(-5, -10, "Controls: [Z] Debug View / [P] Pause Simulation");
 	hud.drawText(-5, -20, "Camera: [WASDQE] Move / [↑↓← →] Turn");
-	hud.drawText(-5, -30, "Light: [L] Set Pos / [+-] Intensity");
+	hud.drawText(-5, -30, "Light: [L] Set Pos");
 
 	// Input ------------------
 	if (input.keys[input.e.keys.P]) {
@@ -123,16 +136,6 @@ function updateScene(dt) {
 			-camera.position[2]
 		];
 		input.keys[input.e.keys.L] = false;
-	}
-	if (input.keys[input.e.keys.ADD]) {
-		if ((scene.lights["point"].intensity += 0.05) > 1.0)
-			scene.lights["point"].intensity = 1.0;
-		input.keys[input.e.keys.ADD] = false;
-	}
-	if (input.keys[input.e.keys.SUBTRACT]) {
-		if ((scene.lights["point"].intensity -= 0.05) < 0.05)
-			scene.lights["point"].intensity = 0.05;
-		input.keys[input.e.keys.SUBTRACT] = false;
 	}
 	if (input.keys[input.e.keys.Z]) {
 		debugView = !debugView;
@@ -177,10 +180,11 @@ function drawFloor() {
 	gl.uniform3fv(shader.fUniforms.lPointPosition, 	scene.lights["point"].position);
 
 	// Textures
-	textureBind(floor.textures[0], shader.fUniforms.tAlbedo, 0);
-	textureBind(floor.textures[1], shader.fUniforms.tNormal, 1);
-	textureBind(floor.textures[2], shader.fUniforms.tSpec, 	 2);
+	textureBind(floor.textures[floor.textureSet][0], shader.fUniforms.tAlbedo, 	0);
+	textureBind(floor.textures[floor.textureSet][1], shader.fUniforms.tNormal, 	1);
+	textureBind(floor.textures[floor.textureSet][2], shader.fUniforms.tSpec,	2);
 	textureBind(scene.rain.textures.a[0], shader.fUniforms.tRain, 3);
+	textureBind(scene.entities["skybox"].texture, shader.fUniforms.tSky, 4);
 
 	gl.uniform1f(shader.fUniforms.tRainSize, (1.0 / scene.rain.size));
 

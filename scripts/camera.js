@@ -2,18 +2,18 @@
 // Camera Class
 // ----------------------------------------------------------------------------
 var cCamera = function(pos, ang) {
-	this.camMat 	= mat4.create();
+	this.camMat		= mat4.create();
 	this.pMat 		= mat4.create();
 	this.rotMat		= mat4.create();
 	this.qRot 		= quat.create();
 	this.qRotU 		= quat.create();
 	this.qRotR 		= quat.create();
 
-	this.position 	= pos || [ 0.0,  0.0,  0.0];
+	this.position	= pos || [ 0.0,  0.0,  0.0];
 	this.delta 		= [ 0.0,  0.0,  0.0];
-	this.angle		= ang || [ 0.0,  0.0,  0.0];
+	this.angle 		= ang || [ 0.0,  0.0,  0.0];
 	this.right 		= [ 1.0,  0.0,  0.0];
-	this.up 		= [ 0.0,  1.0,  0.0];
+	this.up			= [ 0.0,  1.0,  0.0];
 	this.mSpeed		= 5.0;	// Move Speed
 	this.tSpeed		= 90.0;	// Turn Speed
 
