@@ -9,9 +9,9 @@ var cTexture = function(image, width, height, channels, storage, mipmap, af) {
 	this.af 	= (typeof(af) == "undefined" ? true : af);
 	this.buf 	= this._buf = gl.createTexture();
 	this.channels = channels || gl.RGBA;
-	this.height = height || 1;
+	this.height	= height || 1;
 	this.id 	= textures.length;
-	this.mipmap = (typeof(mipmap) == "undefined" ? true : mipmap);
+	this.mipmap	= (typeof(mipmap) == "undefined" ? true : mipmap);
 	this.storage= storage || gl.UNSIGNED_BYTE;
 	this.type 	= gl.TEXTURE_2D;
 	this.width 	= width || 1;

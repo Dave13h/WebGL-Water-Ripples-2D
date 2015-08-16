@@ -107,7 +107,7 @@ var dt 				= 0.0,
 	fps 			= 0,
 	frameCount		= 0,
 	frameTime 		= 0.0,
-	frameTimeLast	= 0.0,
+	frameTimeLast 	= 0.0,
 	frameStart;
 
 function mainLoop(now) {
@@ -151,9 +151,17 @@ window.requestAnimFrame(mainLoop);
 // ----------------------------------------------------------------------------
 // Controllers
 // ----------------------------------------------------------------------------
+function selectController(elem, target) {
+	document.getElementById(elem).addEventListener("change", function(){
+		if (target)
+			target(Number(this.value));
+	});
+};
+
 function sliderController(elem, val, target, div, ps) {
 	ps = ps || 0;
 	div = div || null;
+	
 	document.getElementById(elem).addEventListener("mousemove", function(){
 		document.getElementById(val).value =
 			Number((div ? this.value / div : this.value)).toFixed(ps);
@@ -162,8 +170,8 @@ function sliderController(elem, val, target, div, ps) {
 		evt.initEvent("change", false, true);
 		document.getElementById(val).dispatchEvent(evt);
 	});
-	document.getElementById(val).addEventListener("change", function(){
 
+	document.getElementById(val).addEventListener("change", function(){
 		var max = Number(div ? document.getElementById(elem).max / div :
 			document.getElementById(elem).max);
 		var min = Number(div ? document.getElementById(elem).min / div :

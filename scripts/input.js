@@ -110,5 +110,5 @@ input.e.keys = {
 for (var i in input.e.keys)
 	input.keys[input.e.keys[i]] = false;
 
-document.onkeydown = function(e) { 	input.keys[e.keyCode] = true; };
+document.onkeydown = function(e) { input.keys[e.keyCode] = true; };
 document.onkeyup = function(e) { input.keys[e.keyCode] = false; };

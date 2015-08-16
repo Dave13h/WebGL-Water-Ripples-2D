@@ -72,13 +72,27 @@
 				<input type="range" id="damping" min="0" max="10" step="0.01" value="9.88">
 				<input type="text" size="5" value="0.988" id="d_val"></input><br><br>
 
+				<label for="damping">Drop Size</label><br>
+				<input type="range" id="dropsize" min="1" max="12.5" step="0.01" value="1.25">
+				<input type="text" size="5" value="0.0125" id="ds_val"></input><br><br>
+
+				<label for="maxStr">Max Strength</label><br>
+				<input type="range" id="maxStr" min="0" max="1000" step="1" value="450">
+				<input type="text" size="5" value="450" id="str_val"></input><br><br>
+
 				<label for="rate">Rate</label><br>
-				<input type="range" id="rate" min="0" max="100" step="1" value="50">
+				<input type="range" id="rate" min="0" max="250" step="1" value="50">
 				<input type="text" size="5" value="50" id="r_val"></input><br><br>
 
 				<label for="sun">Sun Brightness</label><br>
 				<input type="range" id="sun" min="0" max="10" step="1" value="7">
-				<input type="text" size="5" value="0.7" id="s_val"></input>
+				<input type="text" size="5" value="0.7" id="s_val"></input><br><br>
+
+				<label for="Textureset">Texture</label>
+				<select id="tSet" style="float: right;">
+					<option value="0">Brick</option>
+					<option value="1">Pebbles</option>
+				</select>
 			</div>
 		</div>
 
@@ -86,6 +100,8 @@
 			<a href="https://github.com/aethersis/water-ripples-2D">Water-Ripples-2D
 				by Aethersis</a> -
 			<a href="http://glmatrix.net/" target="_blank">glMatrix.js</a> -
+			<a href="http://www.turbosquid.com/FullPreview/Index.cfm/ID/300323">Pebbles
+				texture by Etoiles</a> -
 			<a href="http://opengameart.org/content/brick-wall">Brick wall
 				texture by JosipKladaric</a> -
 			<a href="https://www.93i.de/products/media/skybox-texture-set-1">Skybox
@@ -128,6 +144,7 @@
 			uniform sampler2D tNormal;
 			uniform sampler2D tSpec;
 			uniform sampler2D tRain;
+			uniform samplerCube tSky;
 			uniform float tRainSize;
 
 			uniform vec3 uCamPos;
@@ -182,8 +199,11 @@
 				float specular = pow(max(0.0, dot(rDir, eDir)), spec);
 				lighting += lAttn * specular * (lPointColour * lPointIntensity);
 
+				// Sky reflection
+				vec3 sky = textureCube(tSky, eDir).rgb;
+
 				// Gamma Correct
-				vec4 outColour = vec4(lighting * albedo.rgb, 1.0);
+				vec4 outColour = vec4(lighting * (albedo.rgb + sky.rgb), 1.0);
 				gl_FragColor = vec4(pow(outColour.rgb, vec3(1.0 / 2.2)), outColour.a);
 			}
 		</script>
@@ -193,14 +213,15 @@
 			attribute vec2 aPos;
 
 			uniform vec2 uOffset;
+			uniform float uDropSize;
 
 			varying float vR;
 			varying vec2 vPos;
 			varying vec2 vLPos;
 
 			void main(void) {
-				vLPos = aPos; // Local position
-				vPos = aPos + uOffset;
+				vLPos = aPos * uDropSize; // Local position
+				vPos = vLPos + uOffset;
 				gl_Position = vec4(vPos, 0.0, 1.0);
 			}
 		</script>
@@ -211,7 +232,6 @@
 
 			uniform sampler2D tCurrent;
 			uniform float uStrength;
-			uniform vec2  uPOffset;
 			uniform float uSize;
 
 			varying vec2 vLPos;
@@ -221,9 +241,7 @@
 				float cur = texture2D(tCurrent, vPos).r;
 
 				// Mid hit point
-				vec2 dFromMid = vec2(
-					uSize * (uPOffset.x - vLPos.x),
-					uSize * (uPOffset.y - vLPos.y));
+				vec2 dFromMid = vec2(uSize * vLPos.x, uSize * vLPos.y);
 
 				float r = sqrt(pow(dFromMid.x, 2.0) + pow(dFromMid.y, 2.0));
 
